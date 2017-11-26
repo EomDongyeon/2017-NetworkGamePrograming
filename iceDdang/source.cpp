@@ -4,10 +4,10 @@
 #include <glut.h> // includes gl.h glu.h
 #include <random>
 #include <time.h>
-#include<stdio.h>
-#include<vector>
-#include<stdlib.h>
-#include<stdio.h>
+#include <stdio.h>
+#include <vector>
+#include <stdlib.h>
+#include <stdio.h>
 
 #define WIN_HIEGHT 600
 #define WIN_WIDTH 600
@@ -15,7 +15,6 @@
 #define PLAYER_NUM 2
 
 double elapsed_time;
-
 using namespace std;
 
 int map[MAP_SIZE][MAP_SIZE] = {
@@ -40,7 +39,6 @@ int map[MAP_SIZE][MAP_SIZE] = {
 	{ 0,1,0,0,0,1,0,0,0,0,0,1,0,0,0,1,0,0,0,1 },
 	{ 0,1,0,1,1,1,0,1,1,1,1,1,0,1,1,1,0,1,1,1 },
 };
-
 
 void drawRect(float x, float y) {
 	float size = 30;
@@ -128,7 +126,7 @@ class Item {
 public:
 	int x = 15;
 	int y = 9;
-	int status = 1; // 1,2,3 아이템 종류 0 아이템 없음
+	int status = 1; // 1,2 아이템 종류 0 아이템 없음
 	float size = 20;
 	Item(int paramX, int paramY, bool paramStatus) {
 		x = paramX;
@@ -152,14 +150,15 @@ public:
 		}
 	}
 
-}*item[3];
+}*item[2];
 GLvoid drawScene(GLvoid);
 GLvoid Reshape(int w, int h);
 void Keyboard(unsigned char key, int x, int y);
 void SpecialKeyboard(int key, int x, int y);
 void GameTimer(int value);
 void drawMap();
-void PlayerItemCollid(Player p, Item i);
+void PlayerItemCollid(Player *p, Item *i);
+void PlayerPlayerCollid(Player *p, Player *q);
 
 void main(int argc, char *argv[])
 {
@@ -178,6 +177,7 @@ void main(int argc, char *argv[])
 	player[0] = new Player(Player(5, 9, 1, 1, 0, false));
 	player[1] = new Player(Player(5, 10, 1, 0, 0, true));
 	item[0] = new Item(Item(15, 9, 1));
+	item[1] = new Item(Item(6, 11, 1));
 	glutMainLoop();
 }
 // 윈도우 출력 함수
@@ -189,6 +189,7 @@ GLvoid drawScene(GLvoid)
 	drawMap();
 
 	item[0]->draw();
+	item[1]->draw();
 	cout << "Item Status" << item[0]->status << endl;
 	cout << "Player의 Item Status" << player[0]->itemState << endl;
 	for (int i = 0; i < PLAYER_NUM; ++i)
@@ -196,7 +197,14 @@ GLvoid drawScene(GLvoid)
 		player[0]->draw();
 		player[1]->draw();
 	}
-	PlayerItemCollid(*player[0], *item[0]);
+
+	PlayerItemCollid(player[0], item[0]);
+	PlayerItemCollid(player[0], item[1]);
+	PlayerItemCollid(player[1], item[0]);
+	PlayerItemCollid(player[1], item[1]);
+
+	PlayerPlayerCollid(player[0], player[1]);
+
 	//cout << player[0]->itemState << endl;
 
 	glFlush(); // 화면에 출력하기
@@ -260,14 +268,18 @@ void drawMap() {
 		}
 }
 
-void PlayerItemCollid(Player p, Item i)
+void PlayerItemCollid(Player *p, Item *i)
 {
-	cout << p.x << ", " << p.y << "		Item :" << i.x << ", " << i.y << endl;
-	if (p.x == i.x && p.y == i.y)
+	cout << p->x << ", " << p->y << "		Item :" << i->x << ", " << i->y << endl;
+	if (p->x == i->x && p->y == i->y)
 	{
 		cout << "Coliision!!" << endl;
-		i.status = 0;
-		p.itemState = 1;
+		i->status = 0;
+		p->itemState = 1;
 	}
 }
 
+void PlayerPlayerCollid(Player *p, Player *q)
+{
+
+}
