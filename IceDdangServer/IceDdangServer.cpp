@@ -1,5 +1,6 @@
 #include "IceDdangServer.h"
 
+
 // 소켓 함수 오류 출력 후 종료
 void err_quit(char *msg)
 {
@@ -27,11 +28,34 @@ void err_display(char *msg)
 	LocalFree(lpMsgBuf);
 }
 
+int recvn(SOCKET s, char *buf, int len, int flags)
+{
+	int received;
+	char *ptr = buf;
+	int left = len;
+	int downSize = len;
+
+	while (left > 0) {
+		if (left - downSize < 0)
+			downSize = left;
+		received = recv(s, ptr, len, flags);
+		if (received == SOCKET_ERROR)
+			return SOCKET_ERROR;
+		else if (received == 0)
+			break;
+		left -= received;
+		ptr += received;
+	}
+	return (len - left);
+}
+
 // 클라이언트와 데이터 통신
 DWORD WINAPI ProcessClient(LPVOID arg)
 {
 	SOCKET client_sock = (SOCKET)arg;
 	int retval;
+	int type = 0;
+	int len = 0;
 	SOCKADDR_IN clientaddr;
 	int addrlen;
 	char buf[BUFSIZE + 1];
@@ -59,23 +83,28 @@ DWORD WINAPI ProcessClient(LPVOID arg)
 		LeaveCriticalSection(&PlayerCS);
 	}
 
-	//while (1) {
-	//	// 데이터 받기
-	//	retval = recv(client_sock, buf, BUFSIZE, 0);
-	//	if (retval == SOCKET_ERROR) {
-	//		err_display("recv()");
-	//		break;
-	//	}
-	//	else if (retval == 0)
-	//		break;
-
-	//	// 데이터 보내기
-	//	retval = send(client_sock, buf, retval, 0);
-	//	if (retval == SOCKET_ERROR) {
-	//		err_display("send()");
-	//		break;
-	//	}
-	//}
+	while (1) {
+		// 데이터 받기
+		retval = recv(client_sock, (char*)&type, sizeof(int), 0);
+		retval = recv(client_sock, (char*)&len, sizeof(int), 0);
+		retval = recv(client_sock, (char*)PlayerData, len, 0);
+		cout << "타입" << type << endl;
+		cout << "사이즈"  << len << endl;
+		cout << "(x, y): (" << PlayerData->x<< ", "<< PlayerData->y << ")" << endl;
+		//retval = recv(client_sock, buf,BUFSIZE, 0);
+		if (retval == SOCKET_ERROR) {
+			err_display("recv()");
+			break;
+		}
+	else if (retval == 0)
+		break;
+		// 데이터 보내기
+//		retval = send(client_sock, buf, retval, 0);
+//		if (retval == SOCKET_ERROR) {
+//			err_display("send()");
+//			break;
+//		}
+	}
 
 	// closesocket()
 	closesocket(client_sock);

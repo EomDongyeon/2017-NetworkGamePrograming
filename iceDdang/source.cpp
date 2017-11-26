@@ -1,22 +1,29 @@
+#pragma comment(lib, "ws2_32")
+#define _WINSOCK_DEPRECATED_NO_WARNINGS
+#include <winsock2.h>
 #include <iostream>
 #include <fstream>
 #include <string>
-#include <glut.h> // includes gl.h glu.h
+#include <gl/glut.h> // includes gl.h glu.h
 #include <random>
 #include <time.h>
-#include<stdio.h>
-#include<vector>
-#include<stdlib.h>
-#include<stdio.h>
+#include <stdio.h>
+#include <vector>
+#include <stdlib.h>
+#include <stdio.h>
 
+#define SERVERIP   "127.0.0.1"
+#define SERVERPORT 9000
 #define WIN_HIEGHT 600
 #define WIN_WIDTH 600
 #define MAP_SIZE 20
 #define PLAYER_NUM 2
 
 double elapsed_time;
-
 using namespace std;
+bool firstLoop = true;
+void err_quit(char *msg);
+void err_display(char *msg);
 
 int map[MAP_SIZE][MAP_SIZE] = {
 	{ 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 },
@@ -40,23 +47,6 @@ int map[MAP_SIZE][MAP_SIZE] = {
 	{ 0,1,0,0,0,1,0,0,0,0,0,1,0,0,0,1,0,0,0,1 },
 	{ 0,1,0,1,1,1,0,1,1,1,1,1,0,1,1,1,0,1,1,1 },
 };
-
-
-void drawRect(float x, float y) {
-	float size = 30;
-	glColor3f(0, 0, 1);
-	glPushMatrix();
-	glBegin(GL_POLYGON);
-	glVertex3f(x, y, 0.0);
-	glVertex3f(x + size, y, 0.0);
-	glVertex3f(x + size, y + size, 0.0);
-	glVertex3f(x, y + size, 0.0);
-	glEnd();
-	glPopMatrix();
-
-};
-
-
 class Player {
 public:
 	int x = 5;
@@ -64,21 +54,24 @@ public:
 	int speed = 10;
 	float r, g, b;
 	int itemState;
-	bool status;
+	bool status = true;
 	bool tagger;
 	float size = 20;
 	void draw() {
 		float xPos = x * 30;
 		float yPos = 600 - (y * 30) - 30;
-		glColor3f(r, g, b);
-		glPushMatrix();
-		glBegin(GL_POLYGON);
-		glVertex3f(xPos, yPos, 0.0);
-		glVertex3f(xPos + size, yPos, 0.0);
-		glVertex3f(xPos + size, yPos + size, 0.0);
-		glVertex3f(xPos, yPos + size, 0.0);
-		glEnd();
-		glPopMatrix();
+		if (status == true)
+		{
+			glColor3f(r, g, b);
+			glPushMatrix();
+			glBegin(GL_POLYGON);
+			glVertex3f(xPos, yPos, 0.0);
+			glVertex3f(xPos + size, yPos, 0.0);
+			glVertex3f(xPos + size, yPos + size, 0.0);
+			glVertex3f(xPos, yPos + size, 0.0);
+			glEnd();
+			glPopMatrix();
+		}
 	}
 	Player(int paramX, int paramY, float red, float green, float blue, bool paramTagger) {
 		x = paramX;
@@ -122,15 +115,14 @@ public:
 		}
 	}
 
-}*player[2];
-
+};
 class Item {
 public:
 	int x = 15;
 	int y = 9;
-	int status = 1; // 1,2,3 아이템 종류 0 아이템 없음
+	int status = 1; // 1,2 아이템 종류 0 아이템 없음
 	float size = 20;
-	Item(int paramX, int paramY, bool paramStatus) {
+	Item(int paramX, int paramY, int paramStatus) {
 		x = paramX;
 		y = paramY;
 		status = paramStatus;
@@ -152,32 +144,141 @@ public:
 		}
 	}
 
-}*item[3];
+};
+
+
 GLvoid drawScene(GLvoid);
 GLvoid Reshape(int w, int h);
 void Keyboard(unsigned char key, int x, int y);
 void SpecialKeyboard(int key, int x, int y);
 void GameTimer(int value);
 void drawMap();
-void PlayerItemCollid(Player p, Item i);
+SOCKET sock;
+DWORD WINAPI processClient(LPVOID arg);
+void drawRect(float x, float y);
+
+
+class SceneMgr {
+public:
+	Player *player[3];
+	Item *item[2];
+	int idxPlayer;
+	int idxItem;
+
+	void initScene() {
+		player[0] = new Player(Player(5, 9, 1, 1, 0, false));
+		player[1] = new Player(Player(5, 10, 1, 0, 0, true));
+		item[0] = new Item(Item(15, 9, 1));
+		item[1] = new Item(Item(6, 11, 1));
+		idxPlayer = 2;
+		idxItem = 2;
+	}
+	void drawAllObjects() {
+		for (int i = 0; i < idxPlayer; ++i)
+			player[i]->draw();
+		for (int i = 0; i < idxItem; ++i)
+			item[i]->draw();
+	}
+	void PlayerItemCollid()
+	{
+		for (int i = 0; i < idxPlayer; ++i)
+		{
+			for (int j = 0; j < idxItem; ++j)
+			{
+				if (player[i]->x == item[j]->x &&player[i]->y == item[j]->y)
+				{
+					cout << "Player - Item Coliision!!" << endl;
+					player[i]->itemState = 1;
+					item[j]->status = 0;
+				}
+			}
+		}
+	}
+	void PlayerPlayerCollid()
+	{
+		for (int i = 0; i < idxPlayer; ++i)
+		{
+			for (int j = 0; j < idxPlayer; ++j)
+			{
+				if (i == j)
+					continue;
+				else
+				{
+					if (player[i]->x == player[j]->x &&player[i]->y == player[j]->y)
+					{
+						if (player[i]->tagger == true)
+						{
+							cout << "Player - Player Collision!!" << endl;
+							player[j]->status = false;
+						}
+						else if (player[j]->tagger == true)
+						{
+							cout << "Player - Player Collision!!" << endl;
+							player[i]->status = false;
+						}
+					}
+				}
+			}
+		}
+	}
+	void MovePlayer(int idx, char input)
+	{
+		player[idx]->MapCollision(input);
+	}
+	void sendPlayerData(int idx) {
+		// 데이터 통신에 사용할 변수
+		int type = idx;
+		int len = sizeof(Player);
+		int retval;
+
+		// 데이터 보내기(고정 길이) - 타입
+		retval = send(sock, (char *)&type, sizeof(int), 0);
+		if (retval == SOCKET_ERROR) {
+			err_display("send()");
+		}
+
+		// 데이터 보내기(고정 길이) - 길이
+		retval = send(sock, (char *)&len, sizeof(int), 0);
+		if (retval == SOCKET_ERROR) {
+			err_display("send()");
+		}
+
+		// 데이터 보내기(가변 길이)
+		retval = send(sock, (char*)player[1], sizeof(Player), 0);
+		if (retval == SOCKET_ERROR) {
+			err_display("send()");
+		}
+	}
+
+}*sceneMgr;
+
+
 
 void main(int argc, char *argv[])
 {
 	//초기화 함수들
-
+	CreateThread(NULL, 0, processClient, NULL, 0, NULL);	// 스레드 생성
 	glutInitDisplayMode(GLUT_SINGLE | GLUT_RGBA); // 디스플레이 모드 설정
 	glutInitWindowPosition(100, 100); // 윈도우의 위치지정
 	glutInitWindowSize(WIN_WIDTH, WIN_HIEGHT); // 윈도우의 크기 지정
+	glutInit(&argc, argv);
 	glutCreateWindow("얼음땡"); // 윈도우 생성 (윈도우 이름)
+	sceneMgr = new SceneMgr;
+
+	if (firstLoop)
+	{
+		sceneMgr->initScene();
+		firstLoop = false;
+	}
+
+
 	glutDisplayFunc(drawScene); // 출력 함수의 지정
 	glutReshapeFunc(Reshape);
 	glutKeyboardFunc(Keyboard);
 	glutSpecialFunc(SpecialKeyboard);
 	glutTimerFunc(100, GameTimer, 1);
 
-	player[0] = new Player(Player(5, 9, 1, 1, 0, false));
-	player[1] = new Player(Player(5, 10, 1, 0, 0, true));
-	item[0] = new Item(Item(15, 9, 1));
+
 	glutMainLoop();
 }
 // 윈도우 출력 함수
@@ -187,17 +288,10 @@ GLvoid drawScene(GLvoid)
 	glClear(GL_COLOR_BUFFER_BIT);
 
 	drawMap();
-
-	item[0]->draw();
-	cout << "Item Status" << item[0]->status << endl;
-	cout << "Player의 Item Status" << player[0]->itemState << endl;
-	for (int i = 0; i < PLAYER_NUM; ++i)
-	{
-		player[0]->draw();
-		player[1]->draw();
-	}
-	PlayerItemCollid(*player[0], *item[0]);
-	//cout << player[0]->itemState << endl;
+	sceneMgr->drawAllObjects();
+	sceneMgr->PlayerItemCollid();
+	sceneMgr->PlayerPlayerCollid();
+	
 
 	glFlush(); // 화면에 출력하기
 }
@@ -214,39 +308,44 @@ GLvoid Reshape(int w, int h)
 
 void Keyboard(unsigned char key, int x, int y) {
 	if (key == 'a' || key == 'A')
-		player[0]->MapCollision('a');
-	//player[0].setPosition('a');
+		sceneMgr->MovePlayer(0, 'a');
 	if (key == 'w' || key == 'W')
-		player[0]->MapCollision('w');
+		sceneMgr->MovePlayer(0, 'w');
 	if (key == 'd' || key == 'D')
-		player[0]->MapCollision('d');
+		sceneMgr->MovePlayer(0, 'd');
 	if (key == 's' || key == 'S')
-		player[0]->MapCollision('s');
+		sceneMgr->MovePlayer(0, 's');
 	glutPostRedisplay();
 }
 
 void SpecialKeyboard(int key, int x, int y) {
 	if (key == GLUT_KEY_LEFT)
-		player[1]->MapCollision('a');
+	{
+		sceneMgr->MovePlayer(1, 'a');
+		sceneMgr->sendPlayerData(1);
+	}
 	if (key == GLUT_KEY_UP)
-		player[1]->MapCollision('w');
+	{
+		sceneMgr->sendPlayerData(1);
+		sceneMgr->MovePlayer(1, 'w');
+	}
 	if (key == GLUT_KEY_RIGHT)
-		player[1]->MapCollision('d');
+	{
+		sceneMgr->sendPlayerData(1);
+		sceneMgr->MovePlayer(1, 'd');
+	}
 	if (key == GLUT_KEY_DOWN)
-		player[1]->MapCollision('s');
+	{
+		sceneMgr->sendPlayerData(1);
+		sceneMgr->MovePlayer(1, 's');
+	}
 	glutPostRedisplay();
 }
 
 void GameTimer(int value) {
 	elapsed_time = double(glutGet(GLUT_ELAPSED_TIME));
-	//cout << elapsed_time << endl;
-	//if (elapsed_time > 6000)
-	{
-		//	cout << "게임 종료" << endl;
-	}
-	//else {
 	glutTimerFunc(100, GameTimer, 1); // 타이머함수 재 설정 
-									  //}
+							
 	glutPostRedisplay();   // 화면 재 출력 
 }
 
@@ -256,18 +355,69 @@ void drawMap() {
 		{
 			if (map[i][j] == 0)
 				drawRect(j * 30, (600 - i * 30) - 30);
-
 		}
 }
 
-void PlayerItemCollid(Player p, Item i)
-{
-	cout << p.x << ", " << p.y << "		Item :" << i.x << ", " << i.y << endl;
-	if (p.x == i.x && p.y == i.y)
-	{
-		cout << "Coliision!!" << endl;
-		i.status = 0;
-		p.itemState = 1;
-	}
+void err_quit(char *msg) {
+	LPVOID lpMsgBuf;
+	FormatMessage(
+		FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM,
+		NULL, WSAGetLastError(),
+		MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+		(LPTSTR)&lpMsgBuf, 0, NULL);
+	MessageBox(NULL, (LPCTSTR)lpMsgBuf, msg, MB_ICONERROR);
+	LocalFree(lpMsgBuf);
+	exit(1);
 }
 
+void err_display(char *msg)
+{
+	LPVOID lpMsgBuf;
+	FormatMessage(
+		FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM,
+		NULL, WSAGetLastError(),
+		MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+		(LPTSTR)&lpMsgBuf, 0, NULL);
+	printf("[%s] %s", msg, (char *)lpMsgBuf);
+	LocalFree(lpMsgBuf);
+}
+
+
+DWORD WINAPI processClient(LPVOID arg) {
+	int retval;
+
+	// 윈속 초기화
+	WSADATA wsa;
+	if (WSAStartup(MAKEWORD(2, 2), &wsa) != 0)
+		return 1;
+
+	// socket()
+	sock = socket(AF_INET, SOCK_STREAM, 0);
+	if (sock == INVALID_SOCKET) err_quit("socket()");
+
+	// connect()
+	SOCKADDR_IN serveraddr;
+	ZeroMemory(&serveraddr, sizeof(serveraddr));
+	serveraddr.sin_family = AF_INET;
+	serveraddr.sin_addr.s_addr = inet_addr(SERVERIP);
+	serveraddr.sin_port = htons(SERVERPORT);
+	retval = connect(sock, (SOCKADDR *)&serveraddr, sizeof(serveraddr));
+	if (retval == SOCKET_ERROR) err_quit("connect()");
+
+
+	return 0;
+}
+
+void drawRect(float x, float y) {
+	float size = 30;
+	glColor3f(0, 0, 1);
+	glPushMatrix();
+	glBegin(GL_POLYGON);
+	glVertex3f(x, y, 0.0);
+	glVertex3f(x + size, y, 0.0);
+	glVertex3f(x + size, y + size, 0.0);
+	glVertex3f(x, y + size, 0.0);
+	glEnd();
+	glPopMatrix();
+
+};

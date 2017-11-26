@@ -12,7 +12,7 @@ struct PlayerLobby {
 	bool IsReady;
 	int playerNum;
 };
-
+/*
 struct Player {
 	int PosX;
 	int PosY;
@@ -20,6 +20,19 @@ struct Player {
 	int itemstate;		// 소지한 아이템 상태
 	bool status;		// 얼음 상태 확인
 	bool tagger;		// 술래 여부 확인
+};
+*/
+
+class Player {
+public:
+	int x = 5;
+	int y = 9;
+	int speed = 10;
+	float r, g, b;
+	int itemState;
+	bool status = true;
+	bool tagger;
+	float size = 20;
 };
 
 struct Item {
@@ -51,3 +64,5 @@ void SendChangeGameState(int GameState);
 // 수신 함수
 void RecvPlayerAccessInfo(char playerID, char playerIP);
 void RecvInputKey(int inputkey);
+
+using namespace std;
