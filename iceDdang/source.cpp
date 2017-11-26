@@ -62,21 +62,24 @@ public:
 	int speed = 10;
 	float r, g, b;
 	int itemState;
-	bool status;
+	bool status = true;
 	bool tagger;
 	float size = 20;
 	void draw() {
 		float xPos = x * 30;
 		float yPos = 600 - (y * 30) - 30;
-		glColor3f(r, g, b);
-		glPushMatrix();
-		glBegin(GL_POLYGON);
-		glVertex3f(xPos, yPos, 0.0);
-		glVertex3f(xPos + size, yPos, 0.0);
-		glVertex3f(xPos + size, yPos + size, 0.0);
-		glVertex3f(xPos, yPos + size, 0.0);
-		glEnd();
-		glPopMatrix();
+		if (status == true)
+		{
+			glColor3f(r, g, b);
+			glPushMatrix();
+			glBegin(GL_POLYGON);
+			glVertex3f(xPos, yPos, 0.0);
+			glVertex3f(xPos + size, yPos, 0.0);
+			glVertex3f(xPos + size, yPos + size, 0.0);
+			glVertex3f(xPos, yPos + size, 0.0);
+			glEnd();
+			glPopMatrix();
+		}
 	}
 	Player(int paramX, int paramY, float red, float green, float blue, bool paramTagger) {
 		x = paramX;
@@ -128,7 +131,7 @@ public:
 	int y = 9;
 	int status = 1; // 1,2 아이템 종류 0 아이템 없음
 	float size = 20;
-	Item(int paramX, int paramY, bool paramStatus) {
+	Item(int paramX, int paramY, int paramStatus) {
 		x = paramX;
 		y = paramY;
 		status = paramStatus;
@@ -204,7 +207,7 @@ GLvoid drawScene(GLvoid)
 	PlayerItemCollid(player[1], item[1]);
 
 	PlayerPlayerCollid(player[0], player[1]);
-
+	
 	//cout << player[0]->itemState << endl;
 
 	glFlush(); // 화면에 출력하기
@@ -273,13 +276,17 @@ void PlayerItemCollid(Player *p, Item *i)
 	cout << p->x << ", " << p->y << "		Item :" << i->x << ", " << i->y << endl;
 	if (p->x == i->x && p->y == i->y)
 	{
-		cout << "Coliision!!" << endl;
+		cout << "Player - Item Coliision!!" << endl;
 		i->status = 0;
 		p->itemState = 1;
 	}
 }
 
-void PlayerPlayerCollid(Player *p, Player *q)
+void PlayerPlayerCollid(Player *p, Player *tag)
 {
-
+	if (p->x == tag->x && p->y == tag->y)
+	{
+		cout << "Player - Player Collision!!" << endl;
+		p->status = false;
+	}
 }
