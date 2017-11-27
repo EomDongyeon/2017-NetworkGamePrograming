@@ -12,7 +12,7 @@
 #define WIN_HIEGHT 600
 #define WIN_WIDTH 600
 #define MAP_SIZE 20
-#define PLAYER_NUM 2
+#define PLAYER_NUM 3
 
 double elapsed_time;
 using namespace std;
@@ -62,6 +62,7 @@ public:
 	int speed = 10;
 	float r, g, b;
 	int itemState;
+	bool IsIce = false;
 	bool status = true;
 	bool tagger;
 	float size = 20;
@@ -123,7 +124,7 @@ public:
 		}
 	}
 
-}*player[2];
+}*player[3];
 
 class Item {
 public:
@@ -161,6 +162,7 @@ void SpecialKeyboard(int key, int x, int y);
 void GameTimer(int value);
 void drawMap();
 void PlayerItemCollid(Player *p, Item *i);
+void PlayerTaggerCollid(Player *p, Player *tag);
 void PlayerPlayerCollid(Player *p, Player *q);
 
 void main(int argc, char *argv[])
@@ -179,6 +181,7 @@ void main(int argc, char *argv[])
 
 	player[0] = new Player(Player(5, 9, 1, 1, 0, false));
 	player[1] = new Player(Player(5, 10, 1, 0, 0, true));
+	player[2] = new Player(Player(5, 11, 0, 1, 0, false));
 	item[0] = new Item(Item(15, 9, 1));
 	item[1] = new Item(Item(6, 11, 1));
 	glutMainLoop();
@@ -197,17 +200,19 @@ GLvoid drawScene(GLvoid)
 	cout << "Player의 Item Status" << player[0]->itemState << endl;
 	for (int i = 0; i < PLAYER_NUM; ++i)
 	{
-		player[0]->draw();
-		player[1]->draw();
+		player[i]->draw();
+	}
+	for (int i = 0; i < PLAYER_NUM; ++i)
+	{
+		for (int j = 0; j < 2; ++j)
+		{
+			PlayerItemCollid(player[i], item[j]);
+		}
 	}
 
-	PlayerItemCollid(player[0], item[0]);
-	PlayerItemCollid(player[0], item[1]);
-	PlayerItemCollid(player[1], item[0]);
-	PlayerItemCollid(player[1], item[1]);
+	PlayerTaggerCollid(player[0], player[1]);
+	PlayerTaggerCollid(player[2], player[1]);
 
-	PlayerPlayerCollid(player[0], player[1]);
-	
 	//cout << player[0]->itemState << endl;
 
 	glFlush(); // 화면에 출력하기
@@ -224,15 +229,35 @@ GLvoid Reshape(int w, int h)
 }
 
 void Keyboard(unsigned char key, int x, int y) {
-	if (key == 'a' || key == 'A')
-		player[0]->MapCollision('a');
-	//player[0].setPosition('a');
-	if (key == 'w' || key == 'W')
-		player[0]->MapCollision('w');
-	if (key == 'd' || key == 'D')
-		player[0]->MapCollision('d');
-	if (key == 's' || key == 'S')
-		player[0]->MapCollision('s');
+	if (player[0]->status == true && player[0]->IsIce == false)
+	{
+		if (key == 'a' || key == 'A')
+			player[0]->MapCollision('a');
+		//player[0].setPosition('a');
+		if (key == 'w' || key == 'W')
+			player[0]->MapCollision('w');
+		if (key == 'd' || key == 'D')
+			player[0]->MapCollision('d');
+		if (key == 's' || key == 'S')
+			player[0]->MapCollision('s');
+		if (key == 'g' || key == 'G')
+			player[0]->IsIce = true;
+	}
+	if (player[2]->status == true && player[2]->IsIce == false)
+	{
+		if (key == 'j' || key == 'J')
+			player[2]->MapCollision('a');
+		//player[0].setPosition('a');
+		if (key == 'i' || key == 'I')
+			player[2]->MapCollision('w');
+		if (key == 'l' || key == 'L')
+			player[2]->MapCollision('d');
+		if (key == 'k' || key == 'K')
+			player[2]->MapCollision('s');
+		if (key == 'h' || key == 'H')
+			player[2]->IsIce = true;
+	}
+
 	glutPostRedisplay();
 }
 
@@ -260,7 +285,7 @@ void GameTimer(int value) {
 									  //}
 	glutPostRedisplay();   // 화면 재 출력 
 }
-
+ 
 void drawMap() {
 	for (int i = 0; i<MAP_SIZE; i++)
 		for (int j = 0; j<MAP_SIZE; j++)
@@ -282,11 +307,24 @@ void PlayerItemCollid(Player *p, Item *i)
 	}
 }
 
-void PlayerPlayerCollid(Player *p, Player *tag)
+void PlayerTaggerCollid(Player *p, Player *tag)
 {
-	if (p->x == tag->x && p->y == tag->y)
+	if (p->IsIce == false && p->x == tag->x && p->y == tag->y)
 	{
-		cout << "Player - Player Collision!!" << endl;
+		cout << "Tagger - Player Collision!!" << endl;
 		p->status = false;
 	}
+}
+
+void PlayerPlayerCollid(Player *p, Player *q)
+{
+	if (p->IsIce == true && p->x == q->x && p->y ==q->y)
+	{
+		p->IsIce = false;
+	}
+	if (q->IsIce == true && p->x == q->x && p->y == q->y)
+	{
+		q->IsIce = false;
+	}
+
 }
