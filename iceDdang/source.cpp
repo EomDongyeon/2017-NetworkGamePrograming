@@ -72,6 +72,8 @@ public:
 		if (status == true)
 		{
 			glColor3f(r, g, b);
+			if (IsIce == true)
+				glColor3f(0, 1, 1);
 			glPushMatrix();
 			glBegin(GL_POLYGON);
 			glVertex3f(xPos, yPos, 0.0);
@@ -180,7 +182,7 @@ void main(int argc, char *argv[])
 	glutTimerFunc(100, GameTimer, 1);
 
 	player[0] = new Player(Player(5, 9, 1, 1, 0, false));
-	player[1] = new Player(Player(5, 10, 1, 0, 0, true));
+	player[1] = new Player(Player(3, 10, 1, 0, 0, true));
 	player[2] = new Player(Player(5, 11, 0, 1, 0, false));
 	item[0] = new Item(Item(15, 9, 1));
 	item[1] = new Item(Item(6, 11, 1));
@@ -212,6 +214,9 @@ GLvoid drawScene(GLvoid)
 
 	PlayerTaggerCollid(player[0], player[1]);
 	PlayerTaggerCollid(player[2], player[1]);
+
+	PlayerPlayerCollid(player[0], player[2]);
+	PlayerPlayerCollid(player[2], player[0]);
 
 	//cout << player[0]->itemState << endl;
 
