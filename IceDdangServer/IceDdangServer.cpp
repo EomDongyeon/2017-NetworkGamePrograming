@@ -84,7 +84,7 @@ DWORD WINAPI ProcessClient(LPVOID arg)
 	}
 
 	while (1) {
-		// 데이터 받기
+		// 데이터 받기 - 사용자 프로토콜
 		retval = recv(client_sock, (char*)&type, sizeof(int), 0);
 		retval = recv(client_sock, (char*)&len, sizeof(int), 0);
 		retval = recv(client_sock, (char*)PlayerData, len, 0);

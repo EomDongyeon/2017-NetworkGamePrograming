@@ -10,9 +10,8 @@
 #include <stdio.h>
 #include <vector>
 #include <stdlib.h>
-#include <stdio.h>
 
-#define SERVERIP   "127.0.0.1"
+#define SERVERIP   "192.168.81.254"
 #define SERVERPORT 9000
 #define WIN_HIEGHT 600
 #define WIN_WIDTH 600
@@ -291,7 +290,7 @@ GLvoid drawScene(GLvoid)
 	sceneMgr->drawAllObjects();
 	sceneMgr->PlayerItemCollid();
 	sceneMgr->PlayerPlayerCollid();
-	
+
 
 	glFlush(); // 화면에 출력하기
 }
@@ -345,7 +344,7 @@ void SpecialKeyboard(int key, int x, int y) {
 void GameTimer(int value) {
 	elapsed_time = double(glutGet(GLUT_ELAPSED_TIME));
 	glutTimerFunc(100, GameTimer, 1); // 타이머함수 재 설정 
-							
+
 	glutPostRedisplay();   // 화면 재 출력 
 }
 
