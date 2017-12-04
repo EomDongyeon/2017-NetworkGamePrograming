@@ -49,6 +49,104 @@ int recvn(SOCKET s, char *buf, int len, int flags)
 	return (len - left);
 }
 
+void PlayerItemCollid()
+{
+	/*
+	for (int i = 0; i < clientNum; ++i)
+	{
+		for (int j = 0; j < idxItem; ++j)
+		{
+			if (player[i]->x == item[j]->x &&player[i]->y == item[j]->y)
+			{
+				cout << "Player - Item Coliision!!" << endl;
+				player[i]->itemState = 1;
+				item[j]->status = 0;
+			}
+		}
+	}
+	*/
+}
+void PlayerPlayerCollid()
+{
+	for (int i = 0; i < clientNum; ++i)
+	{
+		for (int j = 0; j < clientNum; ++j)
+		{
+			if (i == j)
+				continue;
+			else
+			{
+				if (player[i]->x == player[j]->x &&player[i]->y == player[j]->y)
+				{
+					if (player[i]->tagger == true)
+					{
+						cout << "Player - Player Collision!!" << endl;
+						player[j]->status = false;
+					}
+					else if (player[j]->tagger == true)
+					{
+						cout << "Player - Player Collision!!" << endl;
+						player[i]->status = false;
+					}
+				}
+			}
+		}
+	}
+}
+
+void sendInitPlayer(SOCKET sock, int idx) {
+	// 데이터 통신에 사용할 변수
+	int type = 0;
+	int len = sizeof(Player);
+	int retval;
+
+	// 데이터 보내기(고정 길이) - 타입
+	retval = send(sock, (char *)&type, sizeof(int), 0);
+	if (retval == SOCKET_ERROR) {
+		err_display("send()");
+	}
+
+	// 데이터 보내기(고정 길이) - 길이
+	retval = send(sock, (char *)&len, sizeof(int), 0);
+	if (retval == SOCKET_ERROR) {
+		err_display("send()");
+	}
+
+	// 데이터 보내기(가변 길이)
+	retval = send(sock, (char*)player[idx], sizeof(Player), 0);
+	if (retval == SOCKET_ERROR) {
+		err_display("send()");
+	}
+
+
+
+}
+
+void sendPlayer(SOCKET sock, int idx) {
+	// 데이터 통신에 사용할 변수
+	int type = 0;
+	int len = sizeof(Player);
+	int retval;
+
+	// 데이터 보내기(고정 길이) - 타입
+	retval = send(sock, (char *)&type, sizeof(int), 0);
+	if (retval == SOCKET_ERROR) {
+		err_display("send()");
+	}
+
+	// 데이터 보내기(고정 길이) - 길이
+	retval = send(sock, (char *)&len, sizeof(int), 0);
+	if (retval == SOCKET_ERROR) {
+		err_display("send()");
+	}
+
+	// 데이터 보내기(가변 길이)
+	retval = send(sock, (char*)player[idx], sizeof(Player), 0);
+	if (retval == SOCKET_ERROR) {
+		err_display("send()");
+	}
+}
+
 // 클라이언트와 데이터 통신
 DWORD WINAPI ProcessClient(LPVOID arg)
 {
@@ -62,6 +160,9 @@ DWORD WINAPI ProcessClient(LPVOID arg)
 
 	Player* PlayerData = new Player;
 
+
+	InputData input;
+
 	// 클라이언트 정보 얻기
 	addrlen = sizeof(clientaddr);
 	getpeername(client_sock, (SOCKADDR *)&clientaddr, &addrlen);
@@ -70,16 +171,25 @@ DWORD WINAPI ProcessClient(LPVOID arg)
 	if (ThreadSlot[0] == false) {
 		ThreadSlot[0] = true;
 		printf("[%s:%d] 0번 스레드 할당 완료!\n", inet_ntoa(clientaddr.sin_addr), ntohs(clientaddr.sin_port));
+		player[0] = new Player(Player(0,5, 9, 1, 1, 0, false));
+		sendInitPlayer(client_sock, 0);
+		clientNum++;
 		LeaveCriticalSection(&PlayerCS);
 	}
 	else if (ThreadSlot[1] == false) {
 		ThreadSlot[1] = true;
 		printf("[%s:%d] 1번 스레드 할당 완료!\n", inet_ntoa(clientaddr.sin_addr), ntohs(clientaddr.sin_port));
+		player[1] = new Player(Player(1,5, 10, 1, 0, 0, true));
+		sendInitPlayer(client_sock, 1);
+		clientNum++;
 		LeaveCriticalSection(&PlayerCS);
 	}
 	else if (ThreadSlot[2] == false) {
 		ThreadSlot[2] = true;
 		printf("[%s:%d] 2번 스레드 할당 완료!\n", inet_ntoa(clientaddr.sin_addr), ntohs(clientaddr.sin_port));
+		player[2] = new Player(Player(2, 5, 11, 1, 0, 0, true));
+		sendInitPlayer(client_sock, 2);
+		clientNum++;
 		LeaveCriticalSection(&PlayerCS);
 	}
 
@@ -87,10 +197,22 @@ DWORD WINAPI ProcessClient(LPVOID arg)
 		// 데이터 받기 - 사용자 프로토콜
 		retval = recv(client_sock, (char*)&type, sizeof(int), 0);
 		retval = recv(client_sock, (char*)&len, sizeof(int), 0);
-		retval = recv(client_sock, (char*)PlayerData, len, 0);
+
 		cout << "타입" << type << endl;
-		cout << "사이즈"  << len << endl;
-		cout << "(x, y): (" << PlayerData->x<< ", "<< PlayerData->y << ")" << endl;
+		cout << "사이즈" << len << endl;
+		if (type == 0)
+		{
+			retval = recv(client_sock, (char*)PlayerData, len, 0);
+			cout << "(x, y): (" << PlayerData->x << ", " << PlayerData->y << ")" << endl;
+		}
+		if (type == 1)
+		{
+			retval = recv(client_sock, (char*)&input, len, 0);
+			//cout <<"키보드 값:" << InputData << endl;
+			player[input.idx]->MapCollision(input.input);
+			sendPlayer(client_sock, input.idx);
+		}
+
 		//retval = recv(client_sock, buf,BUFSIZE, 0);
 		if (retval == SOCKET_ERROR) {
 			err_display("recv()");
@@ -113,6 +235,7 @@ DWORD WINAPI ProcessClient(LPVOID arg)
 
 	return 0;
 }
+
 
 int main(int argc, char *argv[])
 {

@@ -11,15 +11,19 @@
 #include <vector>
 #include <stdlib.h>
 
-#define SERVERIP   "192.168.81.254"
-#define SERVERPORT 9000
 #define WIN_HIEGHT 600
 #define WIN_WIDTH 600
+
+#define SERVERIP   "127.0.0.1"
+#define SERVERPORT 9000
+
 #define MAP_SIZE 20
-#define PLAYER_NUM 2
+#define MAX_PLAYER 3
 
 double elapsed_time;
 using namespace std;
+int self = 0;
+int idx = 0;
 bool firstLoop = true;
 void err_quit(char *msg);
 void err_display(char *msg);
@@ -48,6 +52,7 @@ int map[MAP_SIZE][MAP_SIZE] = {
 };
 class Player {
 public:
+	int idx = 0;
 	int x = 5;
 	int y = 9;
 	int speed = 10;
@@ -56,6 +61,18 @@ public:
 	bool status = true;
 	bool tagger;
 	float size = 20;
+	Player() {}
+	Player(int paramIdx, int paramX, int paramY, float red, float green, float blue, bool paramTagger) {
+		idx = paramIdx;
+		x = paramX;
+		y = paramY;
+		r = red;
+		g = green;
+		b = blue;
+		tagger = paramTagger;
+	}
+
+
 	void draw() {
 		float xPos = x * 30;
 		float yPos = 600 - (y * 30) - 30;
@@ -71,14 +88,6 @@ public:
 			glEnd();
 			glPopMatrix();
 		}
-	}
-	Player(int paramX, int paramY, float red, float green, float blue, bool paramTagger) {
-		x = paramX;
-		y = paramY;
-		r = red;
-		g = green;
-		b = blue;
-		tagger = paramTagger;
 	}
 	void setPosition(char c) {
 		if (c == 'a')
@@ -144,6 +153,12 @@ public:
 	}
 
 };
+class InputData {
+public:
+	int idx;
+	char input;
+	InputData(int paramIdx, char paramInput) : idx(paramIdx), input(paramInput) { }
+};
 
 
 GLvoid drawScene(GLvoid);
@@ -159,22 +174,43 @@ void drawRect(float x, float y);
 
 class SceneMgr {
 public:
-	Player *player[3];
+	Player *player[MAX_PLAYER];
 	Item *item[2];
 	int idxPlayer;
 	int idxItem;
 
 	void initScene() {
-		player[0] = new Player(Player(5, 9, 1, 1, 0, false));
-		player[1] = new Player(Player(5, 10, 1, 0, 0, true));
+		Player* PlayerData = new Player;
+			// 데이터 통신에 사용할 변수
+			int type;
+			int len;
+			int retval;
+
+			// 데이터 받기 - 사용자 프로토콜8
+			retval = recv(sock, (char*)&type, sizeof(int), 0);
+			retval = recv(sock, (char*)&len, sizeof(int), 0);
+			retval = recv(sock, (char*)PlayerData, len, 0);
+
+			self = PlayerData->idx;
+			player[self] = PlayerData;
+
+			cout << " [" << player[self]->idx << "] 초기화 " << player[self]->x <<endl;
+
+			if (retval == SOCKET_ERROR) {
+				err_display("recv()");
+			}
+
 		item[0] = new Item(Item(15, 9, 1));
 		item[1] = new Item(Item(6, 11, 1));
-		idxPlayer = 2;
 		idxItem = 2;
 	}
 	void drawAllObjects() {
-		for (int i = 0; i < idxPlayer; ++i)
-			player[i]->draw();
+		for (int i = 0; i < MAX_PLAYER; ++i)
+		{
+			if (player[idx] == NULL)
+				continue;
+			player[idx]->draw();
+		}
 		for (int i = 0; i < idxItem; ++i)
 			item[i]->draw();
 	}
@@ -222,11 +258,58 @@ public:
 	}
 	void MovePlayer(int idx, char input)
 	{
-		player[idx]->MapCollision(input);
+		//sendPlayerData();
+		sendInputData(input);
 	}
-	void sendPlayerData(int idx) {
+	void sendInputData(char input) {
 		// 데이터 통신에 사용할 변수
-		int type = idx;
+		InputData buf(self, input);
+		int type = 1;
+		int len = sizeof(InputData);
+		int retval;
+
+		// 데이터 보내기(고정 길이) - 타입
+		retval = send(sock, (char *)&type, sizeof(int), 0);
+		if (retval == SOCKET_ERROR) {
+			err_display("send()");
+		}
+
+		// 데이터 보내기(고정 길이) - 길이
+		retval = send(sock, (char *)&len, sizeof(int), 0);
+		if (retval == SOCKET_ERROR) {
+			err_display("send()");
+		}
+
+		// 데이터 보내기(가변 길이)
+		retval = send(sock, (char*)&buf, len, 0);
+		if (retval == SOCKET_ERROR) {
+			err_display("send()");
+		}
+	}
+	void recvPlayerData() {
+		Player* PlayerData = new Player;
+		// 데이터 통신에 사용할 변수
+		int type;
+		int len;
+		int retval;
+
+		// 데이터 받기 - 사용자 프로토콜8
+		retval = recv(sock, (char*)&type, sizeof(int), 0);
+		retval = recv(sock, (char*)&len, sizeof(int), 0);
+		retval = recv(sock, (char*)PlayerData, len, 0);
+
+		self = PlayerData->idx;
+		player[self] = PlayerData;
+
+		cout << " [" << player[self]->idx << "] 초기화 " << player[self]->x << endl;
+
+		if (retval == SOCKET_ERROR) {
+			err_display("recv()");
+		}
+	}
+	void sendPlayerData() {
+		// 데이터 통신에 사용할 변수
+		int type = 0;
 		int len = sizeof(Player);
 		int retval;
 
@@ -243,14 +326,13 @@ public:
 		}
 
 		// 데이터 보내기(가변 길이)
-		retval = send(sock, (char*)player[1], sizeof(Player), 0);
+		retval = send(sock, (char*)player[self], sizeof(Player), 0);
 		if (retval == SOCKET_ERROR) {
 			err_display("send()");
 		}
 	}
 
 }*sceneMgr;
-
 
 
 void main(int argc, char *argv[])
@@ -269,7 +351,6 @@ void main(int argc, char *argv[])
 		sceneMgr->initScene();
 		firstLoop = false;
 	}
-
 
 	glutDisplayFunc(drawScene); // 출력 함수의 지정
 	glutReshapeFunc(Reshape);
@@ -306,37 +387,33 @@ GLvoid Reshape(int w, int h)
 }
 
 void Keyboard(unsigned char key, int x, int y) {
-	if (key == 'a' || key == 'A')
-		sceneMgr->MovePlayer(0, 'a');
-	if (key == 'w' || key == 'W')
-		sceneMgr->MovePlayer(0, 'w');
-	if (key == 'd' || key == 'D')
-		sceneMgr->MovePlayer(0, 'd');
-	if (key == 's' || key == 'S')
-		sceneMgr->MovePlayer(0, 's');
-	glutPostRedisplay();
+//	if (key == 'a' || key == 'A')
+		//sceneMgr->MovePlayer(0, 'a');
+
 }
 
 void SpecialKeyboard(int key, int x, int y) {
 	if (key == GLUT_KEY_LEFT)
 	{
 		sceneMgr->MovePlayer(1, 'a');
-		sceneMgr->sendPlayerData(1);
+		sceneMgr->recvPlayerData();
+		//sceneMgr->sendPlayerData(1);
 	}
 	if (key == GLUT_KEY_UP)
 	{
-		sceneMgr->sendPlayerData(1);
 		sceneMgr->MovePlayer(1, 'w');
+		//sceneMgr->MovePlayer(1, 'w');
 	}
 	if (key == GLUT_KEY_RIGHT)
 	{
-		sceneMgr->sendPlayerData(1);
 		sceneMgr->MovePlayer(1, 'd');
+		sceneMgr->recvPlayerData();
+		//sceneMgr->MovePlayer(1, 'd');
 	}
 	if (key == GLUT_KEY_DOWN)
 	{
-		sceneMgr->sendPlayerData(1);
 		sceneMgr->MovePlayer(1, 's');
+		//sceneMgr->MovePlayer(1, 's');
 	}
 	glutPostRedisplay();
 }
